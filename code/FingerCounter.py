@@ -5,7 +5,7 @@ import time
 from collections import deque
 
 # === Configurações Gerais ===
-TEMPO_GESTO_SEGUNDOS = 1.5  # Tempo necessário para segurar um gesto
+TEMPO = 0.1  # Tempo necessário para segurar um gesto
 MAO_DOMINANTE = "Right"     # Altere para "Left" se quiser usar a outra mão
 
 # === Inicializações ===
@@ -27,8 +27,16 @@ def encerrar_programa():
     cv2.destroyAllWindows()
     exit()
 
+def abrir_github():
+    print("✌️ Dois dedos levantados - ABRINDO navegador.")
+    subprocess.Popen("xdg-open https://github.com/Lipefsk05", shell=True)
+
+def abrir_terminal():
+    print("Mindinhos - ABRINDO TERMINAL!")
+    subprocess.Popen("gnome-terminal", shell=True)
+
 # === Funções de detecção ===
-def detectar_dedos_levantados(pontos):
+def detectar_dedos_direita(pontos):
     dedos_ids = [4, 8, 12, 16, 20]
     dedos_levantados = [False] * 5
 
@@ -40,6 +48,22 @@ def detectar_dedos_levantados(pontos):
             dedos_levantados[i] = True
 
     return tuple(dedos_levantados)
+
+def detectar_dedos_esquerda(pontos):
+    dedos_ids = [4, 8, 12, 16, 20]
+    dedos_levantados = [False] * 5
+
+    # Polegar (esquerda aponta para direita na imagem espelhada)
+    if pontos[4][0] > pontos[2][0]:
+        dedos_levantados[0] = True
+
+    # Outros dedos (mesma lógica)
+    for i in range(1, 5):
+        if pontos[dedos_ids[i]][1] < pontos[dedos_ids[i] - 2][1]:
+            dedos_levantados[i] = True
+
+    return tuple(dedos_levantados)
+
 
 def identificar_maos(results, img, w, h):
     maos_identificadas = {}
@@ -67,10 +91,34 @@ def verificar_mão_fechada(gesto_atual):
     if gesto_atual == (False, False, False, False, False):  # Mão fechada
         if estado["inicio_punho"] is None:
             estado["inicio_punho"] = agora
-        elif agora - estado["inicio_punho"] >= TEMPO_GESTO_SEGUNDOS:
+        elif agora - estado["inicio_punho"] >= TEMPO:
             encerrar_programa()
     else:
         estado["inicio_punho"] = None
+
+def verificar_paz_e_amor(gesto_atual):
+    agora = time.time()
+ 
+    if gesto_atual == (False, True, True, False, False):  # Só o dedo 2 e 3 levantados
+        if agora - estado.get("tempo_ultimo_mindinho", 0) >= TEMPO:
+            abrir_terminal()
+            estado["tempo_ultimo_mindinho"] = agora
+
+def verificar_mindinho_duplo(maos, w, h):
+    agora = time.time()
+
+    if "Left" in maos and "Right" in maos:
+        pontos_left = [(int(p.x * w), int(p.y * h)) for p in maos["Left"].landmark]
+        pontos_right = [(int(p.x * w), int(p.y * h)) for p in maos["Right"].landmark]
+
+        gesto_left = detectar_dedos_esquerda(pontos_left)
+        gesto_right = detectar_dedos_direita(pontos_right)
+
+        if gesto_left == (True, False, True, True, True) and gesto_right == (True, False, True, True, True):
+            if agora - estado.get("tempo_ultimo_mindinho", 0) >= TEMPO:
+                abrir_github()
+
+                estado["tempo_ultimo_mindinho"] = agora
 
 # === Loop principal ===
 def main():
@@ -93,11 +141,14 @@ def main():
                 pontos.append((cx, cy))
 
             if pontos:
-                gesto_atual = detectar_dedos_levantados(pontos)
+                gesto_atual = detectar_dedos_direita(pontos)
 
                 agora = time.time()
                 if gesto_atual != estado["gesto_anterior"] or (agora - estado["tempo_ultimo_gesto"]) > 2:
                     verificar_mão_fechada(gesto_atual)
+                    verificar_paz_e_amor(gesto_atual)
+                    verificar_mindinho_duplo(maos, w, h)
+
                     estado["gesto_anterior"] = gesto_atual
                     estado["tempo_ultimo_gesto"] = agora
 
