@@ -5,7 +5,7 @@ import time
 from collections import deque
 
 # === Configurações Gerais ===
-TEMPO = 0.1  # Tempo necessário para segurar um gesto
+TEMPO = 0  # Tempo necessário para segurar um gesto
 MAO_DOMINANTE = "Right"     # Altere para "Left" se quiser usar a outra mão
 
 # === Inicializações ===
@@ -28,7 +28,7 @@ def encerrar_programa():
     exit()
 
 def abrir_github():
-    print("✌️ Dois dedos levantados - ABRINDO navegador.")
+    print("BIGODE - ABRINDO github.")
     subprocess.Popen("xdg-open https://github.com/Lipefsk05", shell=True)
 
 def abrir_terminal():
@@ -85,26 +85,32 @@ def identificar_maos(results, img, w, h):
     return maos_identificadas
 
 # === Verificações de gestos ===
+# Armazena o tempo de detecção do gesto pela primeira vez
 def verificar_mão_fechada(gesto_atual):
     agora = time.time()
 
     if gesto_atual == (False, False, False, False, False):  # Mão fechada
-        if estado["inicio_punho"] is None:
-            estado["inicio_punho"] = agora
-        elif agora - estado["inicio_punho"] >= TEMPO:
+        if "ultimo_punho" not in estado:
+            estado["ultimo_punho"] = agora
+        elif agora - estado["ultimo_punho"] >= TEMPO:
             encerrar_programa()
+            estado.pop("ultimo_punho")  # Reseta o tempo para esperar um novo gesto
     else:
-        estado["inicio_punho"] = None
+        estado.pop("ultimo_punho", None)  # Gesto não está mais ativo, reseta
 
 def verificar_paz_e_amor(gesto_atual):
     agora = time.time()
- 
-    if gesto_atual == (False, True, True, False, False):  # Só o dedo 2 e 3 levantados
-        if agora - estado.get("tempo_ultimo_mindinho", 0) >= TEMPO:
-            abrir_terminal()
-            estado["tempo_ultimo_mindinho"] = agora
 
-def verificar_mindinho_duplo(maos, w, h):
+    if gesto_atual == (False, True, True, False, False):  # Paz e Amor
+        if "tempo_ultimo_mindinho" not in estado:
+            estado["tempo_ultimo_mindinho"] = agora
+        elif agora - estado["tempo_ultimo_mindinho"] >= TEMPO:
+            abrir_terminal()
+            estado.pop("tempo_ultimo_mindinho")
+    else:
+        estado.pop("tempo_ultimo_mindinho", None)
+
+def verificar_bigode(maos, w, h):
     agora = time.time()
 
     if "Left" in maos and "Right" in maos:
@@ -115,10 +121,16 @@ def verificar_mindinho_duplo(maos, w, h):
         gesto_right = detectar_dedos_direita(pontos_right)
 
         if gesto_left == (True, False, True, True, True) and gesto_right == (True, False, True, True, True):
-            if agora - estado.get("tempo_ultimo_mindinho", 0) >= TEMPO:
+            if "ultimo_mindinho_duplo" not in estado:
+                estado["ultimo_mindinho_duplo"] = agora
+            elif agora - estado["ultimo_mindinho_duplo"] >= TEMPO:
                 abrir_github()
+                estado.pop("ultimo_mindinho_duplo")
+        else:
+            estado.pop("ultimo_mindinho_duplo", None)
+    else:
+        estado.pop("ultimo_mindinho_duplo", None)
 
-                estado["tempo_ultimo_mindinho"] = agora
 
 # === Loop principal ===
 def main():
@@ -147,7 +159,7 @@ def main():
                 if gesto_atual != estado["gesto_anterior"] or (agora - estado["tempo_ultimo_gesto"]) > 2:
                     verificar_mão_fechada(gesto_atual)
                     verificar_paz_e_amor(gesto_atual)
-                    verificar_mindinho_duplo(maos, w, h)
+                    verificar_bigode(maos, w, h)
 
                     estado["gesto_anterior"] = gesto_atual
                     estado["tempo_ultimo_gesto"] = agora
